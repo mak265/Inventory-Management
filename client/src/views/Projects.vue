@@ -9,6 +9,7 @@
           <p class="text-gray-500 mt-1">Manage construction sites and allocations</p>
         </div>
         <button 
+          v-if="isAdmin"
           @click="openModal" 
           class="btn-primary flex items-center shadow-lg shadow-blue-500/30"
         >
@@ -60,11 +61,11 @@
                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                </svg>
-               <span class="text-sm font-medium">{{ project.manager || 'No Manager Assigned' }}</span>
+               <span class="text-sm font-medium">{{ project.engineer?.email || project.manager || 'No Engineer Assigned' }}</span>
             </div>
           </div>
 
-          <div class="flex justify-end space-x-2 pt-4 border-t border-gray-100 relative z-10" @click.stop>
+          <div v-if="isAdmin" class="flex justify-end space-x-2 pt-4 border-t border-gray-100 relative z-10" @click.stop>
             <!-- Status Toggle (Simple) -->
             <button 
               v-if="project.status === 'active'"
@@ -95,6 +96,7 @@
 
         <!-- Add New Card Placeholder -->
         <button 
+          v-if="isAdmin"
           @click="showModal = true"
           class="border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50/30 transition-all duration-200 min-h-[200px]"
         >
@@ -129,6 +131,16 @@
             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Location Name</label>
             <input v-model="form.location" required class="input-field" placeholder="e.g. Makati City" />
           </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Assign Engineer</label>
+            <select v-model="form.engineerId" class="input-field appearance-none bg-white">
+              <option value="">Unassigned</option>
+              <option v-for="eng in engineers" :key="eng._id" :value="eng._id">
+                {{ eng.email }}
+              </option>
+            </select>
+          </div>
           
           <!-- Map -->
           <div>
@@ -138,7 +150,7 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Manager</label>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Manager / Foreman (Optional)</label>
             <input v-model="form.manager" class="input-field" placeholder="e.g. Engr. Juan Dela Cruz" />
           </div>
           
@@ -152,19 +164,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import api from '../services/api';
 import Navbar from '../components/Navbar.vue';
+import { useAuthStore } from '../stores/auth';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const projects = ref([]);
+const engineers = ref([]);
 const showModal = ref(false);
+const authStore = useAuthStore();
+const isAdmin = computed(() => authStore.user?.role === 'admin');
 const form = ref({
   name: '',
   location: '',
   coordinates: { lat: 14.5995, lng: 120.9842 }, // Default Manila
   manager: '',
+  engineerId: '',
   status: 'active'
 });
 let map = null;
@@ -210,11 +227,37 @@ const fetchProjects = async () => {
   }
 };
 
+const fetchEngineers = async () => {
+  if (!isAdmin.value) return;
+  try {
+    const response = await api.getEngineers();
+    engineers.value = response.data;
+  } catch (err) {
+    console.error('Failed to fetch engineers:', err);
+  }
+};
+
+const updateStatus = async (project, status) => {
+  try {
+    await api.updateProject(project._id, { status });
+    await fetchProjects();
+  } catch (err) {
+    alert('Failed to update status');
+  }
+};
+
 const createProject = async () => {
   try {
     await api.createProject(form.value);
     showModal.value = false;
-    form.value = { name: '', location: '', manager: '', status: 'active' };
+    form.value = {
+      name: '',
+      location: '',
+      coordinates: { lat: 14.5995, lng: 120.9842 },
+      manager: '',
+      engineerId: '',
+      status: 'active'
+    };
     fetchProjects();
   } catch (err) {
     alert('Failed to create project');
@@ -234,5 +277,16 @@ const deleteProject = async (id) => {
 
 onMounted(() => {
   fetchProjects();
+  fetchEngineers();
 });
+
+watch(
+  () => form.value.engineerId,
+  (newId) => {
+    if (!newId) return;
+    const selected = engineers.value.find(e => e._id === newId);
+    if (!selected) return;
+    if (!form.value.manager) form.value.manager = selected.email;
+  }
+);
 </script>

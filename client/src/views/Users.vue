@@ -24,10 +24,6 @@
             <input v-model="newUser.email" type="email" class="input-field" required placeholder="user@example.com" />
           </div>
           <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Password</label>
-            <input v-model="newUser.password" type="password" class="input-field" required minlength="6" placeholder="••••••••" />
-          </div>
-          <div>
             <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Role</label>
             <select v-model="newUser.role" class="input-field appearance-none bg-white">
               <option value="warehouse_staff">Warehouse Staff</option>
@@ -43,6 +39,9 @@
             </button>
           </div>
         </form>
+        <p class="text-xs text-gray-500 mt-3">
+          A temporary password will be generated and emailed to the user.
+        </p>
         <p v-if="createError" class="text-red-500 text-sm mt-3 flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -146,7 +145,7 @@ import { useAuthStore } from '../stores/auth';
 const users = ref([]);
 const loading = ref(true);
 const authStore = useAuthStore();
-const newUser = ref({ email: '', password: '', role: 'warehouse_staff' });
+const newUser = ref({ email: '', role: 'warehouse_staff' });
 const createError = ref('');
 const createSuccess = ref('');
 
@@ -192,7 +191,7 @@ const createNewUser = async () => {
   try {
     const res = await api.createUser(newUser.value);
     createSuccess.value = res.data.message || `User created: ${newUser.value.email}`;
-    newUser.value = { email: '', password: '', role: 'warehouse_staff' };
+    newUser.value = { email: '', role: 'warehouse_staff' };
     await fetchUsers();
   } catch (err) {
     createError.value = err.response?.data?.message || err.message || 'Failed to create user';

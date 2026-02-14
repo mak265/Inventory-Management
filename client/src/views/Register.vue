@@ -52,7 +52,8 @@ const router = useRouter();
 const handleRegister = async () => {
   try {
     await authStore.register(email.value, password.value);
-    router.push('/verify-otp');
+    alert('Registration successful. You can now login.');
+    router.push('/login');
   } catch (err) {
     error.value = err.response?.data?.message || 'Registration failed';
   }

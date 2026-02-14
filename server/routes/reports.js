@@ -12,7 +12,7 @@ function toCSV(rows, headers) {
   return `${h}\n${b}`;
 }
 
-router.get('/inventory', auth, async (req, res) => {
+router.get('/inventory', auth, roles('admin', 'warehouse_staff'), async (req, res) => {
   try {
     const items = await Item.find().populate('category').sort({ name: 1 });
     if (req.query.format === 'csv') {
@@ -34,7 +34,7 @@ router.get('/inventory', auth, async (req, res) => {
   }
 });
 
-router.get('/stock-in', auth, async (req, res) => {
+router.get('/stock-in', auth, roles('admin', 'warehouse_staff'), async (req, res) => {
   try {
     const data = await Transaction.find({ type: 'in' }).sort({ date: -1 }).populate('item user');
     if (req.query.format === 'csv') {
@@ -56,7 +56,7 @@ router.get('/stock-in', auth, async (req, res) => {
   }
 });
 
-router.get('/stock-out', auth, async (req, res) => {
+router.get('/stock-out', auth, roles('admin', 'warehouse_staff'), async (req, res) => {
   try {
     const data = await Transaction.find({ type: 'out' }).sort({ date: -1 }).populate('item user project');
     if (req.query.format === 'csv') {
@@ -80,7 +80,7 @@ router.get('/stock-out', auth, async (req, res) => {
   }
 });
 
-router.get('/low-stock', auth, async (req, res) => {
+router.get('/low-stock', auth, roles('admin', 'warehouse_staff'), async (req, res) => {
   try {
     const items = await Item.find().sort({ name: 1 });
     const low = items.filter(i => i.quantity <= (i.minStock || 0));
@@ -101,7 +101,7 @@ router.get('/low-stock', auth, async (req, res) => {
   }
 });
 
-router.get('/usage-by-project', auth, roles('admin', 'warehouse_staff', 'site_engineer'), async (req, res) => {
+router.get('/usage-by-project', auth, roles('admin', 'warehouse_staff'), async (req, res) => {
   try {
     const match = { type: 'out' };
     if (req.query.startDate || req.query.endDate) {

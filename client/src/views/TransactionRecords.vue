@@ -146,13 +146,7 @@ const filters = ref({
 
 const fetchTransactions = async () => {
   try {
-    const params = { ...filters.value };
-    // Only send dates if both are present to avoid partial filtering
-    if (!params.startDate || !params.endDate) {
-        delete params.startDate;
-        delete params.endDate;
-    }
-    const response = await api.getTransactions(params);
+    const response = await api.getTransactions({ ...filters.value });
     transactions.value = response.data;
   } catch (err) {
     console.error(err);

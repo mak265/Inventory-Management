@@ -5,8 +5,21 @@
       <h1 class="text-3xl font-bold text-gray-800 mb-2 tracking-tight">Sales History</h1>
       <p class="text-gray-500 mb-8">Review and export past transactions</p>
 
+      <div class="card mb-6">
+        <div class="flex gap-2">
+          <button @click="activeTab = 'pos'" class="flex-1 py-2 rounded-lg font-bold"
+            :class="activeTab === 'pos' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'">
+            POS Sales
+          </button>
+          <button @click="activeTab = 'project'" class="flex-1 py-2 rounded-lg font-bold"
+            :class="activeTab === 'project' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'">
+            Project Sales
+          </button>
+        </div>
+      </div>
+
       <div class="card mb-8">
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+        <div v-if="activeTab === 'pos'" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div>
             <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Start Date</label>
             <input type="date" v-model="filters.startDate" class="input-field" />
@@ -42,11 +55,55 @@
             </button>
           </div>
         </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Start Date</label>
+            <input type="date" v-model="projectFilters.startDate" class="input-field" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">End Date</label>
+            <input type="date" v-model="projectFilters.endDate" class="input-field" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Payment</label>
+            <select v-model="projectFilters.paymentStatus" class="input-field">
+              <option value="">All</option>
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Method</label>
+            <select v-model="projectFilters.paymentMethod" class="input-field">
+              <option value="">All</option>
+              <option value="cash">Cash</option>
+              <option value="gcash">GCash</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="check">Check</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Project</label>
+            <select v-model="projectFilters.projectId" class="input-field appearance-none bg-white">
+              <option value="">All Projects</option>
+              <option v-for="p in projects" :key="p._id" :value="p._id">
+                {{ p.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex items-center">
+            <button @click="fetchProjectSales" class="btn-primary w-full flex items-center justify-center">
+              Filter
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="card p-0 overflow-hidden shadow-lg border-0">
         <div class="overflow-x-auto">
-          <table class="min-w-full">
+          <table v-if="activeTab === 'pos'" class="min-w-full">
             <thead class="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Txn ID</th>
@@ -99,6 +156,48 @@
               </tr>
             </tbody>
           </table>
+
+          <table v-else class="min-w-full">
+            <thead class="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Project</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Item</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Qty</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Payment</th>
+                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 bg-white">
+              <tr v-for="t in projectSales" :key="t._id" class="hover:bg-blue-50/30 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ new Date(t.date).toLocaleString() }}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">
+                  <div class="font-bold text-gray-800">{{ t.project?.name || 'N/A' }}</div>
+                  <div class="text-xs text-gray-500">{{ t.project?.location || '' }}</div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-800">{{ t.item?.name || 'Deleted Item' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{{ t.quantity }} {{ t.unit }}</td>
+                <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-800">₱{{ getTxnAmount(t).toFixed(2) }}</td>
+                <td class="px-6 py-4 text-sm">
+                  <div v-if="t.isPaid">
+                    <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded font-medium">Paid</span>
+                    <span v-if="t.paymentMethod" class="text-xs ml-2 text-gray-600 uppercase">{{ t.paymentMethod }}</span>
+                    <span v-if="t.orNumber" class="text-xs ml-2 text-gray-500">OR: {{ t.orNumber }}</span>
+                  </div>
+                  <div v-else>
+                    <span class="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded font-medium">Unpaid</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ t.user?.email || '—' }}</td>
+              </tr>
+              <tr v-if="projectSales.length === 0">
+                <td colspan="7" class="px-6 py-12 text-center text-gray-400">
+                  No project transactions found for the selected filters.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -106,17 +205,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import Navbar from '../components/Navbar.vue';
 import api from '../services/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const sales = ref([]);
+const activeTab = ref('pos');
+const projectSales = ref([]);
+const projects = ref([]);
 const filters = ref({
   startDate: '',
   endDate: '',
   paymentMethod: ''
+});
+const projectFilters = ref({
+  startDate: '',
+  endDate: '',
+  paymentStatus: '',
+  paymentMethod: '',
+  projectId: ''
 });
 
 const fetchSales = async () => {
@@ -131,6 +240,40 @@ const fetchSales = async () => {
     console.error(err);
     alert(err.response?.data?.message || 'Failed to fetch sales');
   }
+};
+
+const fetchProjects = async () => {
+  try {
+    const res = await api.getProjects();
+    projects.value = res.data;
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const fetchProjectSales = async () => {
+  try {
+    const params = {
+      type: 'out',
+      startDate: projectFilters.value.startDate || undefined,
+      endDate: projectFilters.value.endDate || undefined,
+      project: projectFilters.value.projectId || undefined,
+      paymentMethod: projectFilters.value.paymentMethod || undefined
+    };
+    if (projectFilters.value.paymentStatus === 'paid') params.isPaid = 'true';
+    if (projectFilters.value.paymentStatus === 'unpaid') params.isPaid = 'false';
+    const res = await api.getTransactions(params);
+    projectSales.value = Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.message || 'Failed to fetch project sales');
+  }
+};
+
+const getTxnAmount = (t) => {
+  const unitPrice = Number(t.unitPrice ?? t.item?.price ?? 0);
+  const qty = Number(t.quantity ?? 0);
+  return unitPrice * qty;
 };
 
 const exportCSV = async () => {
@@ -198,5 +341,12 @@ const exportPDF = () => {
 
 onMounted(() => {
   fetchSales();
+  fetchProjects();
+});
+
+watch(activeTab, (tab) => {
+  if (tab === 'project' && projectSales.value.length === 0) {
+    fetchProjectSales();
+  }
 });
 </script>

@@ -32,13 +32,22 @@
             <label class="block text-sm font-medium text-gray-700">Password</label>
             <router-link to="/forgot-password" class="text-sm text-blue-600 hover:text-blue-700 font-medium">Forgot?</router-link>
           </div>
-          <input 
-            v-model="password" 
-            type="password" 
-            class="input-field"
-            placeholder="••••••••"
-            required
-          />
+          <div class="relative">
+            <input 
+              v-model="password" 
+              :type="showPassword ? 'text' : 'password'" 
+              class="input-field pr-14"
+              placeholder="••••••••"
+              required
+            />
+            <button
+              type="button"
+              class="absolute inset-y-0 right-0 px-4 text-sm font-bold text-gray-500 hover:text-gray-700"
+              @click="showPassword = !showPassword"
+            >
+              {{ showPassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
         </div>
         
         <button type="submit" class="btn-primary w-full py-3 text-lg shadow-lg shadow-blue-500/30">
@@ -60,10 +69,6 @@
           {{ error }}
         </div>
         
-        <!-- Add Link to Verify Page if error is about verification -->
-        <div v-if="error.includes('verify')" class="mt-2 pl-8">
-            <router-link to="/verify-otp" class="text-blue-600 font-bold hover:underline">Go to Verification Page</router-link>
-        </div>
       </div>
     </div>
   </div>
@@ -76,13 +81,18 @@ import { useRouter } from 'vue-router';
 
 const email = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const error = ref('');
 const authStore = useAuthStore();
 const router = useRouter();
 
 const handleLogin = async () => {
   try {
-    await authStore.login(email.value, password.value);
+    const res = await authStore.login(email.value, password.value);
+    if (res?.requiresPasswordChange) {
+      router.push(`/activate-account?email=${encodeURIComponent(res.email || email.value)}`);
+      return;
+    }
     
     // Redirect based on role
     const role = authStore.user?.role;
@@ -90,6 +100,8 @@ const handleLogin = async () => {
       router.push('/client-dashboard');
     } else if (role === 'delivery') {
       router.push('/deliveries');
+    } else if (role === 'site_engineer') {
+      router.push('/engineer-dashboard');
     } else {
       router.push('/dashboard');
     }

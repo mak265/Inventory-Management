@@ -8,20 +8,23 @@ const seedAdmin = async () => {
         await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/inventory-db');
         console.log('MongoDB connected');
 
-        const email = 'superadmin@example.com';
-        const password = 'password123';
+        const email = process.env.ADMIN_EMAIL || 'superadmin@example.com';
+        const password = process.env.ADMIN_PASSWORD || 'password123';
         const role = 'admin';
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            console.log('Admin user already exists');
-            // Optionally update role to admin if it exists but not admin
-            if (existingUser.role !== 'admin') {
-                existingUser.role = 'admin';
-                existingUser.isVerified = true;
-                await existingUser.save();
-                console.log('Updated existing user to admin');
-            }
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, salt);
+
+            existingUser.role = role;
+            existingUser.isVerified = true;
+            existingUser.password = hashedPassword;
+            await existingUser.save();
+
+            console.log('Admin user updated successfully');
+            console.log(`Email: ${email}`);
+            console.log(`Password: ${password}`);
             process.exit(0);
         }
 

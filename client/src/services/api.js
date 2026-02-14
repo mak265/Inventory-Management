@@ -41,6 +41,9 @@ export default {
   login(credentials) {
     return apiClient.post('/auth/login', credentials);
   },
+  activateAccount(data) {
+    return apiClient.post('/auth/activate', data);
+  },
   getMe() {
     return apiClient.get('/auth/me');
   },
@@ -126,6 +129,9 @@ export default {
   getUsers() {
     return apiClient.get('/users');
   },
+  getEngineers() {
+    return apiClient.get('/users', { params: { role: 'site_engineer' } });
+  },
   createUser(user) {
     return apiClient.post('/users', user);
   },
@@ -146,6 +152,9 @@ export default {
   getTransactions(params) {
     return apiClient.get('/transactions', { params });
   },
+  updateTransactionPayment(id, data) {
+    return apiClient.put(`/transactions/${id}/payment`, data);
+  },
   stockIn(data) {
     return apiClient.post('/transactions/in', data);
   },
@@ -157,8 +166,8 @@ export default {
   },
 
   // Orders
-  getOrders() {
-    return apiClient.get('/orders');
+  getOrders(params) {
+    return apiClient.get('/orders', { params });
   },
   getMyOrders() {
     return apiClient.get('/orders', { params: { view: 'mine' } });

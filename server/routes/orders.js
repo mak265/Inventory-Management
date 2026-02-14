@@ -3,6 +3,7 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Item = require('../models/Item');
 const Transaction = require('../models/Transaction');
+const Project = require('../models/Project');
 const auth = require('../middleware/auth');
 const roles = require('../middleware/roles');
 const logActivity = require('../utils/logger');
@@ -32,13 +33,25 @@ router.get('/', auth, async (req, res) => {
         }
         // 3. Client: See only their own orders
         else {
-            query.user = req.user.id;
+            if (req.user.role === 'site_engineer') {
+                const projects = await Project.find({ engineer: req.user.id }).select('_id');
+                const projectIds = projects.map(p => p._id);
+                query.project = { $in: projectIds };
+
+                if (view === 'deliveries') {
+                    query.type = 'delivery';
+                    query.status = { $ne: 'cancelled' };
+                }
+            } else {
+                query.user = req.user.id;
+            }
         }
 
         console.log('Query:', query);
 
         const orders = await Order.find(query)
             .populate('user', 'email')
+            .populate('project', 'name location')
             .populate('items.item')
             .populate('assignedTo', 'email') // Populate delivery guy info
             .sort({ createdAt: -1 });
@@ -56,16 +69,36 @@ router.get('/:id', auth, async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
             .populate('user', 'email')
+            .populate('project', 'name location engineer')
             .populate('items.item');
         
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         // Access control
-        if (req.user.role !== 'admin' && req.user.role !== 'warehouse_staff' && order.user._id.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Access denied' });
+        if (req.user.role === 'admin' || req.user.role === 'warehouse_staff') {
+            return res.json(order);
         }
 
-        res.json(order);
+        if (req.user.role === 'delivery') {
+            if (!order.assignedTo || order.assignedTo.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Access denied' });
+            }
+            return res.json(order);
+        }
+
+        if (req.user.role === 'site_engineer') {
+            const projectId = typeof order.project === 'object' && order.project ? order.project._id : order.project;
+            if (!projectId) return res.status(403).json({ message: 'Access denied' });
+            const canAccess = await Project.exists({ _id: projectId, engineer: req.user.id });
+            if (!canAccess) return res.status(403).json({ message: 'Access denied' });
+            return res.json(order);
+        }
+
+        if (order.user && order.user._id && order.user._id.toString() === req.user.id) {
+            return res.json(order);
+        }
+
+        return res.status(403).json({ message: 'Access denied' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -75,6 +108,13 @@ router.get('/:id', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
     try {
         const { items, type, deliveryAddress, notes } = req.body;
+        const projectId = req.body.projectId || req.body.project;
+
+        if (req.user.role === 'site_engineer') {
+            if (!projectId) return res.status(400).json({ message: 'Project is required' });
+            const assignedProject = await Project.findOne({ _id: projectId, engineer: req.user.id }).select('_id');
+            if (!assignedProject) return res.status(403).json({ message: 'Project not assigned to you' });
+        }
 
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'No items in order' });
@@ -102,8 +142,10 @@ router.post('/', auth, async (req, res) => {
                 type: 'out',
                 quantity: i.quantity,
                 user: req.user.id,
+                unit: item.unit,
+                unitPrice: Number(item.price || 0),
                 reason: `Order ${type || 'standard'}`,
-                project: req.body.projectId // Optional: if linked to a project
+                project: projectId
             });
             await transaction.save();
 
@@ -117,6 +159,7 @@ router.post('/', auth, async (req, res) => {
 
         const order = new Order({
             user: req.user.id,
+            project: projectId,
             items: orderItems,
             type,
             deliveryAddress: type === 'delivery' ? deliveryAddress : undefined,
@@ -128,8 +171,14 @@ router.post('/', auth, async (req, res) => {
 
         const newOrder = await order.save();
         await logActivity(req.user.id, 'order_created', `Created order ${newOrder._id} (${type})`);
+
+        const populated = await Order.findById(newOrder._id)
+            .populate('user', 'email')
+            .populate('project', 'name location')
+            .populate('items.item')
+            .populate('assignedTo', 'email');
         
-        res.status(201).json(newOrder);
+        res.status(201).json(populated);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: err.message });

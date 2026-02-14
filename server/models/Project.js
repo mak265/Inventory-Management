@@ -17,6 +17,10 @@ const ProjectSchema = new mongoose.Schema({
     manager: {
         type: String // Name of the Site Engineer / Foreman
     },
+    engineer: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
     status: {
         type: String,
         enum: ['active', 'completed', 'on-hold'],

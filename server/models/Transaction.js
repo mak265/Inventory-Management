@@ -29,6 +29,10 @@ const TransactionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Project'
     },
+    unitPrice: {
+        type: Number,
+        default: 0
+    },
     requestedBy: {
         type: String
     },
@@ -40,8 +44,15 @@ const TransactionSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    paymentMethod: {
+        type: String,
+        enum: ['cash', 'gcash', 'bank_transfer', 'check', 'other']
+    },
     orNumber: {
         type: String
+    },
+    paidAt: {
+        type: Date
     },
 
     // For Adjustment

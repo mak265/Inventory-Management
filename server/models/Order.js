@@ -6,6 +6,10 @@ const OrderSchema = new mongoose.Schema({
         ref: 'User', 
         required: true 
     },
+    project: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Project'
+    },
     items: [{
         item: { 
             type: mongoose.Schema.Types.ObjectId, 

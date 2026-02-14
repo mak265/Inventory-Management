@@ -7,18 +7,20 @@ const roles = require('../middleware/roles');
 const logActivity = require('../utils/logger');
 
 // GET all transactions (with filters)
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, roles('admin', 'warehouse_staff'), async (req, res) => {
     try {
         const query = {};
         if (req.query.type) query.type = req.query.type;
         if (req.query.item) query.item = req.query.item;
         if (req.query.project) query.project = req.query.project;
-        if (req.query.startDate && req.query.endDate) {
-            query.date = { 
-                $gte: new Date(req.query.startDate), 
-                $lte: new Date(req.query.endDate) 
-            };
+        if (req.query.startDate || req.query.endDate) {
+            query.date = {};
+            if (req.query.startDate) query.date.$gte = new Date(req.query.startDate);
+            if (req.query.endDate) query.date.$lte = new Date(req.query.endDate);
         }
+        if (req.query.isPaid === 'true') query.isPaid = true;
+        if (req.query.isPaid === 'false') query.isPaid = false;
+        if (req.query.paymentMethod) query.paymentMethod = req.query.paymentMethod;
 
         const transactions = await Transaction.find(query)
             .populate('item')
@@ -26,6 +28,41 @@ router.get('/', auth, async (req, res) => {
             .populate('user', 'email role') // Don't send password
             .sort({ date: -1 });
         res.json(transactions);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+router.put('/:id/payment', auth, roles('admin', 'warehouse_staff'), async (req, res) => {
+    try {
+        const transaction = await Transaction.findById(req.params.id);
+        if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
+        if (transaction.type !== 'out') return res.status(400).json({ message: 'Payment can only be updated for stock out transactions' });
+
+        const isPaid = Boolean(req.body.isPaid);
+        if (isPaid) {
+            const paymentMethod = req.body.paymentMethod;
+            if (!paymentMethod) return res.status(400).json({ message: 'Payment method is required' });
+            if (!['cash', 'gcash', 'bank_transfer', 'check', 'other'].includes(paymentMethod)) {
+                return res.status(400).json({ message: 'Invalid payment method' });
+            }
+            transaction.isPaid = true;
+            transaction.paymentMethod = paymentMethod;
+            transaction.orNumber = req.body.orNumber || transaction.orNumber;
+            transaction.paidAt = new Date();
+        } else {
+            transaction.isPaid = false;
+            transaction.paymentMethod = undefined;
+            transaction.orNumber = undefined;
+            transaction.paidAt = undefined;
+        }
+
+        await transaction.save();
+        const populated = await Transaction.findById(transaction._id)
+            .populate('item')
+            .populate('project')
+            .populate('user', 'email role');
+        res.json(populated);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -86,9 +123,12 @@ router.post('/out', auth, roles('warehouse_staff', 'admin'), async (req, res) =>
             quantity: qty,
             unit: item.unit,
             project: req.body.projectId,
+            unitPrice: Number(item.price || 0),
             requestedBy: req.body.requestedBy,
             isPaid: req.body.isPaid || false,
+            paymentMethod: req.body.paymentMethod || undefined,
             orNumber: req.body.orNumber,
+            paidAt: req.body.isPaid ? new Date() : undefined,
             user: req.user.id
         });
 

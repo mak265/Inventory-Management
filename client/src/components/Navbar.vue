@@ -8,7 +8,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
         </div>
-        <span class="font-bold text-lg tracking-wide">Aberin MIS</span>
+        <span class="font-bold text-lg tracking-wide">Triogok</span>
       </div>
       <button @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded-lg hover:bg-white/10 transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,7 +126,9 @@ const navigationGroups = [
   {
     title: 'Main',
     items: [
-      { name: 'Dashboard', path: '/dashboard', icon: IconDashboard, roles: ['admin', 'client', 'warehouse_staff', 'site_engineer'] },
+      { name: 'Dashboard', path: '/dashboard', icon: IconDashboard, roles: ['admin', 'warehouse_staff'] },
+      { name: 'Dashboard', path: '/client-dashboard', icon: IconDashboard, roles: ['client'] },
+      { name: 'My Dashboard', path: '/engineer-dashboard', icon: IconDashboard, roles: ['site_engineer'] },
     ]
   },
   {
@@ -134,17 +136,20 @@ const navigationGroups = [
     items: [
       { name: 'Order Materials', path: '/order-catalog', icon: IconCart, roles: ['client'] },
       { name: 'My Orders', path: '/my-orders', icon: IconPackage, roles: ['client'] },
+      { name: 'Order Materials', path: '/engineer-order', icon: IconCart, roles: ['site_engineer'] },
+      { name: 'My Orders', path: '/engineer-orders', icon: IconPackage, roles: ['site_engineer'] },
       { name: 'Manage Orders', path: '/orders-manage', icon: IconClipboard, roles: ['admin'] },
       { name: 'Stock Management', path: '/stock', icon: IconLayers, roles: ['admin'] },
-      { name: 'Inventory', path: '/inventory', icon: IconBox, roles: ['admin', 'warehouse_staff', 'site_engineer'] },
+      { name: 'Inventory', path: '/inventory', icon: IconBox, roles: ['admin', 'warehouse_staff'] },
       { name: 'POS System', path: '/pos', icon: IconCreditCard, roles: ['admin'] },
-      { name: 'Deliveries', path: '/deliveries', icon: IconTruck, roles: ['delivery', 'admin', 'site_engineer'] },
+      { name: 'Deliveries', path: '/deliveries', icon: IconTruck, roles: ['delivery', 'admin'] },
+      { name: 'Project Deliveries', path: '/project-deliveries', icon: IconTruck, roles: ['site_engineer'] },
     ]
   },
   {
     title: 'Management',
     items: [
-      { name: 'Projects', path: '/projects', icon: IconBriefcase, roles: ['admin'] },
+      { name: 'Projects', path: '/projects', icon: IconBriefcase, roles: ['admin', 'site_engineer'] },
       { name: 'Categories', path: '/categories', icon: IconTag, roles: ['admin'] },
       { name: 'Users', path: '/users', icon: IconUsers, roles: ['admin'] },
     ]
@@ -152,9 +157,9 @@ const navigationGroups = [
   {
     title: 'Reports & Data',
     items: [
-      { name: 'Records', path: '/transactions', icon: IconFileText, roles: ['admin', 'site_engineer'] },
+      { name: 'Records', path: '/transactions', icon: IconFileText, roles: ['admin', 'warehouse_staff'] },
       { name: 'Sales History', path: '/sales-history', icon: IconTrending, roles: ['admin'] },
-      { name: 'Reports', path: '/reports', icon: IconChart, roles: ['admin', 'site_engineer'] },
+      { name: 'Reports', path: '/reports', icon: IconChart, roles: ['admin', 'warehouse_staff'] },
       { name: 'Audit Trail', path: '/audit-trail', icon: IconEye, roles: ['admin'] },
     ]
   }
